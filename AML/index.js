@@ -1603,6 +1603,38 @@
       FormDivider: settingsFormComponent("FormDivider"),
       FormInput: settingsFormComponent("FormInput"),
     };
+    const nativeIconCache = new Map();
+    const settingIcon = (key, label) => {
+      const Icon = F.FormRow && F.FormRow.Icon;
+      if (!Icon || !ui.assets || typeof ui.assets.getAssetIDByName !== "function") return undefined;
+      const cacheKey = String(key || "") + " " + String(label || "");
+      if (nativeIconCache.has(cacheKey)) return nativeIconCache.get(cacheKey);
+      const text = cacheKey.toLowerCase();
+      const patterns = /time|clock/.test(text) ? [/clock/i, /time/i]
+        : /deleted|delete/.test(text) ? [/eye_hidden/i, /delete/i, /trash/i]
+        : /edit|edited/.test(text) ? [/edit/i, /pencil/i, /audit_update/i]
+        : /ignore/.test(text) ? [/close_24px/i, /person/i, /ignore/i]
+        : /bot/.test(text) ? [/close_24px/i, /bot/i]
+        : /user/.test(text) ? [/person/i, /user/i]
+        : /color/.test(text) ? [/paint_brush/i, /color/i, /palette/i]
+        : /storage|save|persist|cache/.test(text) ? [/storage/i, /save/i, /database/i, /download/i]
+        : /search|filter/.test(text) ? [/search/i, /filter/i]
+        : /message|log/.test(text) ? [/message/i, /chat/i, /text/i]
+        : /server|channel/.test(text) ? [/server/i, /channel/i]
+        : [/settings/i];
+      let icon = null;
+      try {
+        const names = Object.keys(ui.assets.all || {});
+        let name = null;
+        for (const pattern of patterns) { name = names.find((candidate) => pattern.test(candidate)); if (name) break; }
+        if (name) {
+          const source = ui.assets.getAssetIDByName(name);
+          if (source != null) icon = h(Icon, { source });
+        }
+      } catch (_) {}
+      nativeIconCache.set(cacheKey, icon || undefined);
+      return icon || undefined;
+    };
     const C = palette();
     const h = React.createElement;
 
@@ -1653,13 +1685,13 @@
 
     const PressRow = (key, label, sub, onPress, right, rightColor) => mark(
       F && F.FormRow
-        ? h(F.FormRow, { key, label, subLabel: sub, onPress, trailing: valueChip(right, rightColor) })
+        ? h(F.FormRow, { key, label, subLabel: sub, onPress, leading: settingIcon(key, label), trailing: valueChip(right, rightColor) })
         : h(RN.Pressable, { key, onPress, accessibilityRole: "button", style: rowStyle },
           rowText(label, sub), valueChip(right, rightColor)));
 
     const switchRow = (key, label, sub, value, change) => mark(
       F && F.FormSwitchRow
-        ? h(F.FormSwitchRow, { key, label, subLabel: sub, value, onValueChange: change })
+        ? h(F.FormSwitchRow, { key, label, subLabel: sub, leading: settingIcon(key, label), value, onValueChange: change })
         : h(RN.Pressable, { key, onPress: () => change(!value), accessibilityRole: "button", style: rowStyle },
           h(RN.View, { style: { flex: 1, paddingRight: 12 } },
             Text({ style: { color: C.text, fontSize: 16, fontWeight: "500" } }, label),
@@ -1668,7 +1700,7 @@
 
     const Btn = (key, title, onPress, color) => {
       const label = key === "back" ? "‹  Back" : title;
-      if (F.FormRow) return mark(h(F.FormRow, { key, label, onPress }));
+      if (F.FormRow) return mark(h(F.FormRow, { key, label, leading: settingIcon(key, label), onPress }));
       return mark(h(RN.Pressable, { key, onPress, accessibilityRole: "button", style: rowStyle }, rowText(label, null)));
     };
 
@@ -1900,9 +1932,10 @@
       const updateFilter = (key, value) => setLogFilter((current) => ({ ...current, [key]: value }));
       content = [Btn("back", "< Back", () => { setScreen(filterReturn); refreshUI(); }), Section("Search logs")];
       if (F.FormInput) {
-        content.push(mark(h(F.FormInput, { key: "filter-query", title: "USER, CHANNEL OR MESSAGE", placeholder: "Search logged messages", value: logFilter.query, onChange: (value) => updateFilter("query", value) })));
-        content.push(mark(h(F.FormInput, { key: "filter-from", title: "FROM DATE", placeholder: "YYYY-MM-DD", value: logFilter.from, onChange: (value) => updateFilter("from", value) })));
-        content.push(mark(h(F.FormInput, { key: "filter-to", title: "TO DATE", placeholder: "YYYY-MM-DD", value: logFilter.to, onChange: (value) => updateFilter("to", value) })));
+        const inputText = (value) => typeof value === "string" ? value : value && typeof value.text === "string" ? value.text : "";
+        content.push(mark(h(F.FormInput, { key: "filter-query", title: "USER, CHANNEL OR MESSAGE", placeholder: "Search logged messages", value: logFilter.query, onChange: (value) => updateFilter("query", inputText(value)) })));
+        content.push(mark(h(F.FormInput, { key: "filter-from", title: "FROM DATE", placeholder: "YYYY-MM-DD", value: logFilter.from, onChange: (value) => updateFilter("from", inputText(value)) })));
+        content.push(mark(h(F.FormInput, { key: "filter-to", title: "TO DATE", placeholder: "YYYY-MM-DD", value: logFilter.to, onChange: (value) => updateFilter("to", inputText(value)) })));
       } else {
         ["query", "from", "to"].forEach((key) => content.push(PressRow("filter-" + key, key === "query" ? "User, channel or message" : key === "from" ? "From date" : "To date", logFilter[key] || "Not set", () => {
           if (RN.Alert && typeof RN.Alert.prompt === "function") RN.Alert.prompt("Search logs", key === "query" ? "User, channel or message" : "Date (YYYY-MM-DD)", (value) => { if (value != null) updateFilter(key, value); }, "plain-text", logFilter[key] || "");
