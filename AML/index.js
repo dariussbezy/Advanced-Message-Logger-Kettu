@@ -769,7 +769,43 @@
     const ios = RN.Platform && RN.Platform.OS === "ios";
     const list = buttons.slice(0, ios ? 6 : 3);
     if (ios && appendCancel !== false) list.push({ text: "Cancel", style: "cancel" });
-    try { RN.Alert.alert(title, message, list, { cancelable: true }); } catch (_) {}
+    try { showDiscordAlert("aml-confirm", title, message, list); } catch (_) {}
+  }
+
+  function showDiscordAlert(id, title, content, buttons) {
+    const h = React.createElement;
+    const alerts = findByProps("openAlert", "dismissAlert");
+    const components = findByProps("AlertModal", "AlertActions", "AlertActionButton");
+    if (!alerts || !components) throw new Error("Discord alert components unavailable");
+    const actions = h(components.AlertActions, null, ...buttons.slice(0, 4).map((button, index) => h(components.AlertActionButton, {
+      key: id + "-action-" + index, text: button.text,
+      variant: button.style === "destructive" ? "destructive" : button.style === "cancel" ? "secondary" : "primary",
+      onPress: button.onPress,
+    })));
+    alerts.openAlert(id, h(components.AlertModal, { title, content, actions }));
+  }
+
+  function openNativeInputAlert(props) {
+    const api = findByProps("openAlert", "dismissAlert");
+    if (!api || typeof api.openAlert !== "function") throw new Error("Discord alert API unavailable");
+    api.openAlert(props.id, React.createElement(NativeInputAlert, props));
+  }
+
+  function NativeInputAlert(props) {
+    const [value, setValue] = React.useState(String(props.initialValue || ""));
+    const h = React.createElement;
+    const parts = findByProps("AlertModal", "AlertActions", "AlertActionButton");
+    const inputModule = findByProps("TextInput");
+    const Input = inputModule && inputModule.TextInput;
+    const dismiss = () => { try { findByProps("openAlert", "dismissAlert").dismissAlert(props.id); } catch (_) {} };
+    const save = () => { dismiss(); if (typeof props.onSave === "function") props.onSave(value); };
+    const field = Input
+      ? h(Input, { value, onChange: setValue, keyboardType: props.keyboardType, placeholder: props.placeholder || "", autoCapitalize: "none", autoCorrect: false })
+      : h(RN.TextInput, { value, onChangeText: setValue, keyboardType: props.keyboardType, placeholder: props.placeholder || "", autoCapitalize: "none", autoCorrect: false });
+    const actions = h(parts.AlertActions, null,
+      h(parts.AlertActionButton, { text: "Cancel", variant: "secondary", onPress: dismiss }),
+      h(parts.AlertActionButton, { text: props.saveLabel || "Save", variant: "primary", onPress: save }));
+    return h(parts.AlertModal, { title: props.title, content: props.content, extraContent: field, actions });
   }
 
   function showEdits(message) {
@@ -1426,7 +1462,7 @@
       { text: "Jump to message", onPress: () => dismissDmMessageAlert(entry, true) },
     ];
     try {
-      RN.Alert.alert(title, "From " + String(entry.an || "Unknown") + ":\n\n" + (entry.t || "(no message text)"), buttons, { cancelable: false });
+      showDiscordAlert("aml-dm-message", title, "From " + String(entry.an || "Unknown") + ":\n\n" + (entry.t || "(no message text)"), buttons);
     } catch (_) {
       dmAlertShowing = false;
       toast(title + " from " + entry.an + ": " + clip(entry.t, 80));
@@ -1496,6 +1532,56 @@
       React.createElement(RN.View, { style: { flexDirection: "row", justifyContent: "flex-end", flexWrap: "wrap", marginTop: 18 } },
         action("Default", () => { closeSettingsAlert(); if (typeof props.onSave === "function") props.onSave(props.defaultValue); }, false),
         action("Cancel", closeSettingsAlert, false), action("Save", save, true)));
+  }
+
+  function openNativeColorAlert(props) {
+    const api = findByProps("openAlert", "dismissAlert");
+    if (!api || typeof api.openAlert !== "function") throw new Error("Discord alert API unavailable");
+    api.openAlert("aml-color-setting", React.createElement(NativeColorAlert, props));
+  }
+
+  function NativeColorAlert(props) {
+    const [value, setValue] = React.useState(String(props.initialValue || props.defaultValue || RED));
+    const [error, setError] = React.useState("");
+    const h = React.createElement;
+    const alerts = findByProps("openAlert", "dismissAlert");
+    const alertParts = findByProps("AlertModal", "AlertActions", "AlertActionButton");
+    const groupModule = findByProps("TableRowGroup");
+    const rowModule = findByProps("TableRow");
+    const tableGroup = groupModule && groupModule.TableRowGroup;
+    const tableRow = rowModule && rowModule.TableRow;
+    const inputModule = findByProps("TextInput");
+    const Input = inputModule && inputModule.TextInput;
+    const presets = [
+      ["Red", "#ED4245"], ["Orange", "#F07B3E"], ["Gold", "#F1C40F"], ["Green", "#43B581"], ["Teal", "#1ABC9C"],
+      ["Blue", "#3498DB"], ["Indigo", "#5865F2"], ["Purple", "#9B59B6"], ["Pink", "#EB459E"], ["Gray", "#80848E"],
+    ];
+    const dismiss = () => { try { alerts.dismissAlert("aml-color-setting"); } catch (_) {} };
+    const save = (hex) => {
+      if (typeof props.onSave === "function") props.onSave(hex);
+      dismiss();
+    };
+    if (!alertParts || !tableGroup || !tableRow) return h(RN.Text, null, "Color settings are unavailable.");
+    const rows = presets.map(([label, hex]) => h(tableRow, {
+      key: hex, label, onPress: () => setValue(hex),
+      icon: h(RN.View, { style: { width: 20, height: 20, borderRadius: 10, backgroundColor: hex } }),
+      trailing: value.toUpperCase() === hex && tableRow.TrailingText ? h(tableRow.TrailingText, { text: "Selected" }) : undefined,
+    }));
+    const extraContent = h(RN.ScrollView, { style: { maxHeight: 420 } },
+      h(tableGroup, { title: "Basic colors" }, ...rows),
+      h(tableGroup, { title: "Custom HEX" },
+        Input ? h(Input, { value, onChange: (next) => { setValue(next); setError(""); }, placeholder: "#3366FF", autoCapitalize: "characters", autoCorrect: false })
+          : h(RN.TextInput, { value, onChangeText: (next) => { setValue(next); setError(""); }, placeholder: "#3366FF", autoCapitalize: "characters", autoCorrect: false }),
+        error ? h(RN.Text, { style: { color: RED, padding: 8 } }, error) : null));
+    const actions = h(alertParts.AlertActions, null,
+      h(alertParts.AlertActionButton, { text: "Default", variant: "secondary", onPress: () => save(props.defaultValue) }),
+      h(alertParts.AlertActionButton, { text: "Cancel", variant: "secondary", onPress: dismiss }),
+      h(alertParts.AlertActionButton, { text: "Save", variant: "primary", disabled: !/^#[0-9A-Fa-f]{6}$/.test(value), onPress: () => {
+        const hex = String(value).trim().toUpperCase();
+        if (!/^#[0-9A-F]{6}$/.test(hex)) { setError("Enter a HEX color such as #3366FF."); return; }
+        save(hex);
+      } }));
+    return h(alertParts.AlertModal, { title: props.title || "Message color", content: "Choose a preset or enter a HEX color.", extraContent, actions });
   }
 
   function LogFilterModal(props) {
@@ -1723,7 +1809,7 @@
 
     const Title = (key, text) => Text({ key, style: { color: C.text, fontSize: 20, fontWeight: "700", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 } }, text);
 
-    // Rows that sit next to each other are grouped into one rounded card with dividers.
+    // Render settings groups with Kettu's native table row components.
     const compose = (list) => {
       const out = [];
       let run = [];
@@ -1779,18 +1865,14 @@
     };
 
     const saveCurrentLogFilter = () => {
-      if (!RN.Alert || typeof RN.Alert.prompt !== "function") {
-        toast("Saved filter naming requires the native text prompt");
-        return;
-      }
-      RN.Alert.prompt("Save filter", "Name this search", (name) => {
+      openNativeInputAlert({ id: "aml-filter-name", title: "Save filter", content: "Name this search", onSave: (name) => {
         const clean = String(name || "").trim();
         if (!clean) return;
         const saved = Array.isArray(cfg().savedLogFilters) ? cfg().savedLogFilters : [];
         cfg().savedLogFilters = [{ ...logFilter, name: clean }, ...saved.filter((item) => item.name !== clean)].slice(0, 20);
         refreshUI();
         toast("Filter saved");
-      }, "plain-text", "");
+      } });
     };
 
     const retentionLabel = () => (cfg().retentionDays === 7 ? "7 days" : cfg().retentionDays === 30 ? "30 days" : "Forever");
@@ -1814,43 +1896,16 @@
         trimMap(rawBuffer, count);
         refreshUI();
       };
-      if (RN.Alert && typeof RN.Alert.prompt === "function") {
-        RN.Alert.prompt("Maximum cached messages", "All Channels mode only. Higher values use more memory.", saveLimit, "plain-text", String(rawBufferLimit()), "number-pad");
-        return;
-      }
       try {
-        ui.alerts.showCustomAlert(MessageCacheLimitModal, {
-          initialValue: rawBufferLimit(),
-          onSave: saveLimit,
-        });
+        openNativeInputAlert({ id: "aml-cache-limit", title: "Maximum cached messages", content: "All Channels mode only. Higher values use more memory.", initialValue: rawBufferLimit(), keyboardType: "number-pad", onSave: saveLimit });
       } catch (_) { toast("Could not open cache limit settings"); }
     };
     const editColor = (key, title, defaultValue) => {
-      const presets = [
-        ["Red", "#ED4245"], ["Orange", "#F07B3E"], ["Gold", "#F1C40F"], ["Green", "#43B581"], ["Teal", "#1ABC9C"],
-        ["Blue", "#3498DB"], ["Indigo", "#5865F2"], ["Purple", "#9B59B6"], ["Pink", "#EB459E"], ["Gray", "#80848E"],
-      ];
       const saveColor = (value) => { cfg()[key] = value; refreshStyledMessages(); refreshUI(); };
-      const choose = (offset) => {
-        const choices = presets.slice(offset, offset + 4).map(([name, hex]) => ({ text: name, onPress: () => saveColor(hex) }));
-        if (offset + 4 < presets.length) choices.push({ text: "More colors", onPress: () => choose(offset + 4) });
-        choices.push({ text: "Enter HEX", onPress: () => {
-          if (!RN.Alert || typeof RN.Alert.prompt !== "function") { toast("Custom HEX entry is unavailable here"); return; }
-          RN.Alert.prompt(title, "Enter a color such as #3366FF", (value) => {
-            const hex = String(value || "").trim().toUpperCase();
-            if (/^#[0-9A-F]{6}$/.test(hex)) saveColor(hex);
-            else if (value != null) ask("Invalid color", "Use a HEX color such as #3366FF.", [{ text: "OK" }]);
-          }, "plain-text", colorValue(key, defaultValue));
-        } });
-        choices.push({ text: "Default", onPress: () => saveColor(defaultValue) });
-        choices.push({ text: "Cancel", style: "cancel" });
-        RN.Alert.alert(title, "Current: " + colorValue(key, defaultValue), choices, { cancelable: true });
-      };
-      if (RN.Platform && RN.Platform.OS === "ios" && RN.Alert && typeof RN.Alert.alert === "function") { choose(0); return; }
       try {
-        ui.alerts.showCustomAlert(ColorSettingModal, {
+        openNativeColorAlert({
           title,
-          initialValue: colorValue(key, key === "editedMessageColor" ? GREY : RED),
+          initialValue: colorValue(key, defaultValue),
           defaultValue,
           onSave: saveColor,
         });
@@ -1952,7 +2007,7 @@
         content.push(mark(h(F.FormInput, { key: "filter-to", title: "TO DATE", placeholder: "YYYY-MM-DD", value: logFilter.to, onChange: (value) => updateFilter("to", inputText(value)) })));
       } else {
         ["query", "from", "to"].forEach((key) => content.push(PressRow("filter-" + key, key === "query" ? "User, channel or message" : key === "from" ? "From date" : "To date", logFilter[key] || "Not set", () => {
-          if (RN.Alert && typeof RN.Alert.prompt === "function") RN.Alert.prompt("Search logs", key === "query" ? "User, channel or message" : "Date (YYYY-MM-DD)", (value) => { if (value != null) updateFilter(key, value); }, "plain-text", logFilter[key] || "");
+          openNativeInputAlert({ id: "aml-filter-field-" + key, title: "Search logs", content: key === "query" ? "User, channel or message" : "Date (YYYY-MM-DD)", initialValue: logFilter[key] || "", onSave: (value) => updateFilter(key, value) });
         })));
       }
       content.push(Section("Actions"), PressRow("filter-clear", "Clear search", "Remove all search terms and dates", () => { setLogFilter({ query: "", from: "", to: "" }); refreshUI(); }),
@@ -2004,7 +2059,8 @@
       ];
     }
 
-    return h(RN.ScrollView, { key: screen, contentContainerStyle: { paddingBottom: 24 } }, ...compose(content));
+    const buildLabel = Text({ key: "build", style: { color: C.sub, fontSize: 13, paddingHorizontal: 4, paddingBottom: 4 } }, "Build " + BUILD);
+    return h(RN.ScrollView, { key: screen, contentContainerStyle: { paddingHorizontal: 12, paddingTop: 20, paddingBottom: 24 } }, buildLabel, ...compose(content));
   }
 
   function onLoad() {
