@@ -1,4 +1,4 @@
-# Advanced Message Logger
+# Advanced Message Logger Kettu
 
 An advanced message logger for Kettu, inspired by the Vencord version. It keeps deleted messages visible in chat, shows previous versions of edited messages and much more.
 
