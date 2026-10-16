@@ -1,0 +1,14 @@
+{
+  "name": "Adv. Message Logger",
+  "description": "A very stable and advanced message logger that logs deleted and edited messages in Kettu, jump back to them, and much more! Check the plugin settings.",
+  "authors": [
+    {
+      "name": "dariussbezy"
+    }
+  ],
+  "main": "index.js",
+  "hash": "7b03655e99df18f630ee49e6cf3c6e68ce3bffbd9b700c06c134cf6fd8ecb0c3",
+  "vendetta": {
+    "icon": "ic_message_edit"
+  }
+}
