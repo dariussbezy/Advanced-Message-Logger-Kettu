@@ -24,7 +24,7 @@ An advanced message logger for Kettu, inspired by the Vencord version. It keeps 
 In Kettu, go to **Settings → Plugins**, tap **+**, and paste:
 
 ```text
-https://raw.githubusercontent.com/dariussbezy/Advanced-Message-Logger/main/AML/
+https://raw.githubusercontent.com/dariussbezy/Advanced-Message-Logger-Kettu/main/AMLK/
 ```
 
 Enable the plugin, then open its settings to choose what to log and display.
