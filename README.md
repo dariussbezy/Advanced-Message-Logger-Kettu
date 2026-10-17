@@ -1,5 +1,4 @@
-# THIS PLUGIN FOR KETTU IS NO LONGER MAINTAINED, MOVE ON TO RAIN AND CHOOSE THIS VERSION:
-https://github.com/dariussbezy/Advanced-Message-Logger
+# THIS PLUGIN FOR KETTU IS NO LONGER MAINTAINED, MOVE ON TO RAIN AND CHOOSE THIS VERSION: https://github.com/dariussbezy/Advanced-Message-Logger
 
 
 # Advanced Message Logger Kettu
