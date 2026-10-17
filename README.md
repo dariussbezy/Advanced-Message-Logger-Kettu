@@ -1,3 +1,7 @@
+# THIS PLUGIN FOR KETTU IS NO LONGER MAINTAINED, MOVE ON TO RAIN AND CHOOSE THIS VERSION:
+https://github.com/dariussbezy/Advanced-Message-Logger
+
+
 # Advanced Message Logger Kettu
 
 An advanced message logger for Kettu, inspired by the Vencord version. It keeps deleted messages visible in chat, shows previous versions of edited messages and much more.
@@ -31,8 +35,8 @@ Enable the plugin, then open its settings to choose what to log and display.
 The existing project notes report testing on iOS 27 with Kettu 1.4.3 and Discord 305.1. Android and other client versions may behave differently. Please report any discrepancies or issues you encounter.
 Please report bugs, crashes, and suggestions in the project's feedback channel.
 
-## Recommended for use with the Ghost Ping Logger plugin.
-https://github.com/dariussbezy/Ghost-Ping-Logger
+## Recommended for use with the Ghost Ping Logger Kettu plugin.
+https://github.com/dariussbezy/Ghost-Ping-Logger-Kettu
 
 ## Screenshots
 
